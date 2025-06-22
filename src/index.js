@@ -8,6 +8,7 @@ import cors from "cors";
 import { SocketUser } from "./models/SocketUserModel.js";
 import socketUserRoutes from "./routes/socketUserRoutes.js"; // REST routes
 import notificationRoutes from "./routes/notificationRoutes.js";
+import { Notification } from "./models/NotificationModel.js";
 
 dotenv.config();
 
@@ -46,11 +47,40 @@ const io = new Server(server, {
   });
 });
 
-io.on("connection", (socket) => {
-  console.log("🔌 New client connected:", socket.id);
+io.on("connection", async (socket) => {
+  const userId = socket.handshake.auth?.userId;
+
+  await SocketUser.findOneAndUpdate(
+    { userId },
+    { socketId: socket.id },
+    { upsert: true, new: true }
+  );
+
+
+  const unsentNotifications = await Notification.find({
+    userId: userId,
+  }).sort({ createdAt: -1 }) // Sort by newest first
+    .limit(20);              // Limit to latest 20 notifications
+
+  for (const notif of unsentNotifications) {
+    socket.emit("notification", {
+      _id: notif._id,
+      notificationMessage: notif.notificationMessage,
+      title: notif.title,
+      module: notif.module,
+      moduleId: notif.moduleId,
+      read: notif.read,
+      createdAt: notif.createdAt,
+    });
+
+    notif.sent = true;
+    await notif.save();
+  }
+
+
+
 
   socket.on("register", async (userId) => {
-    console.log("------------------",userId)
     try {
       await SocketUser.findOneAndUpdate(
         { userId },

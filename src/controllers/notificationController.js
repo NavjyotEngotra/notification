@@ -3,7 +3,6 @@ import { Notification } from "../models/NotificationModel.js";
 import { SocketUser } from "../models/SocketUserModel.js";
 
 export const sendNotifications = async (req, res) => {
-    console.log("kdsjghfiugiufdgvui ijdghsfui")
   try {
     const { notificationMessage, title, module, moduleId, userIds } = req.body;
 
@@ -25,21 +24,14 @@ export const sendNotifications = async (req, res) => {
     // Insert all notifications
     const createdNotifications = await Notification.insertMany(notificationsToCreate);
 
-    
-
     // Now, send socket notifications for each user if connected
     for (const notif of createdNotifications) {
-
-        
-      console.log("///////v /////" , notif)
-
       const socketUser = await SocketUser.findOne({ userId: notif.userId });
 
-      console.log("////////////" , socketUser)
 
       if (socketUser?.socketId) {
         // Emit socket event here — assuming you have access to io instance
-        req.io.to(socketUser.socketId).emit("notification", {
+        req.io.to(socketUser.socketId).emit("newNotificationSend", {
           _id: notif._id,
           notificationMessage: notif.notificationMessage,
           title: notif.title,
